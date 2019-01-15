@@ -18,16 +18,31 @@ module geod24.bitblob;
 static import std.ascii;
 import std.algorithm;
 import std.range;
-import std.format;
 import std.utf;
 
 ///
 @nogc @safe pure nothrow unittest
 {
-    import std.digest.sha;
+    /// Alias for a 256 bits / 32 byte hash type
     alias Hash = BitBlob!256;
-    Hash k1 = sha256Of("Hello World");
+
+    import std.digest.sha;
+    // Can be initialized from an `ubyte[32]`
+    // (or `ubyte[]` of length 32)
+    Hash fromSha = sha256Of("Hello World");
+
+    // Of from a string
+    Hash genesis = GenesisBlockHashStr;
+
+    assert(!genesis.isNull());
+    assert(Hash.init.isNull());
+
+    ubyte[5] empty;
+    assert(Hash.init < genesis);
+    // The underlying 32 bytes can be access through `opIndex` and `opSlice`
+    assert(genesis[$ - 5 .. $] == empty);
 }
+
 
 /*******************************************************************************
 
@@ -37,28 +52,56 @@ import std.utf;
       Bits = The size of the hash, in bits. Must be a multiple of 8.
 
 *******************************************************************************/
+
 public struct BitBlob (size_t Bits)
 {
-    /// Used by std.format
-    /// Cannot be `nothrow @nogc` since sformat is not, but does not allocate
-    public void toString (scope void delegate(const(char)[]) @safe sink) const @safe
+    @safe:
+
+    static assert (
+        Bits % 8 == 0,
+        "Argument to BitBlob must be a multiple of 8");
+
+    /// Convenience enum
+    public enum StringBufferSize = (Width * 2 + 2);
+
+    /***************************************************************************
+
+        Format the hash as a lowercase hex string
+
+        Used by `std.format`.
+        Does not allocate/throw if the sink does not allocate/throw.
+
+    ***************************************************************************/
+
+    public void toString (scope void delegate(const(char)[]) @safe sink) const
     {
+        /// Used for formatting
+        static immutable LHexDigits = `0123456789abcdef`;
+
         sink("0x");
         char[2] data;
         // retro because the data is stored in little endian
         this.data[].retro.each!(
             (bin)
             {
-                sformat(data, "%0.2x", bin);
+                data[0] = LHexDigits[bin >> 4];
+                data[1] = LHexDigits[(bin & 0b0000_1111)];
                 sink(data);
             });
     }
 
-    /// Used for serialization
-    public string toString () const @safe
+    /***************************************************************************
+
+        Get the string representation of this hash
+
+        Only performs one allocation.
+
+    ***************************************************************************/
+
+    public string toString () const
     {
         size_t idx;
-        char[Width * 2 + 2] buffer = void;
+        char[StringBufferSize] buffer = void;
         scope sink = (const(char)[] v) {
                 buffer[idx .. idx + v.length] = v;
                 idx += v.length;
@@ -67,7 +110,7 @@ public struct BitBlob (size_t Bits)
         return buffer.idup;
     }
 
-    pure nothrow @nogc @safe:
+    pure nothrow @nogc:
 
     /***************************************************************************
 
@@ -117,15 +160,21 @@ public struct BitBlob (size_t Bits)
             this.data[idx] = cast(ubyte)((chunk[0] << 4) + chunk[1]);
     }
 
-    /// Used for deserialization
-    static auto fromString (const(char)[] str)
+    /***************************************************************************
+
+        Support deserialization
+
+        Vibe.d expects the `toString`/`fromString` to be present for it to
+        correctly serialize and deserialize a type.
+        This allows to use this type as parameter in `vibe.web.rest` methods,
+        or use it with Vibe.d's serialization module.
+
+    ***************************************************************************/
+
+    static auto fromString (scope const(char)[] str)
     {
         return BitBlob!(Bits)(str);
     }
-
-    static assert (
-        Bits % 8 == 0,
-        "Argument to BitBlob must be a multiple of 8");
 
     /// The width of this aggregate, in octets
     public static immutable Width = Bits / 8;
@@ -136,14 +185,23 @@ public struct BitBlob (size_t Bits)
     /// Returns: If this BitBlob has any value
     public bool isNull () const
     {
-        return this.data[].all!((v) => v == 0);
+        return this == typeof(this).init;
     }
 
     /// Used for sha256Of
-    public const(ubyte)[] opIndex () const
+    public inout(ubyte)[] opIndex () inout
     {
         return this.data;
     }
+
+    /// Convenience overload
+    public inout(ubyte)[] opSlice (size_t from, size_t to) inout
+    {
+        return this.data[from .. to];
+    }
+
+    /// Ditto
+    alias opDollar = Width;
 
     /// Public because of a visibility bug
     public static ubyte fromHex (char c)
@@ -195,6 +253,23 @@ unittest
     alias Hash = BitBlob!256;
     Hash gen1 = GenesisBlockHashStr;
     assert(format("%s", gen1) == GenesisBlockHashStr);
+    assert(gen1.toString() == GenesisBlockHashStr);
+}
+
+/// Make sure `toString` does not allocate even if it's not `@nogc`
+unittest
+{
+    import core.memory;
+    import std.format;
+    alias Hash = BitBlob!256;
+
+    Hash gen1 = GenesisBlockHashStr;
+    char[Hash.StringBufferSize] buffer;
+    auto statsBefore = GC.stats();
+    formattedWrite(buffer[], "%s", gen1);
+    auto statsAfter = GC.stats();
+    assert(buffer == GenesisBlockHashStr);
+    assert(statsBefore.usedSize == statsAfter.usedSize);
 }
 
 version (unittest)
