@@ -16,7 +16,7 @@
 module geod24.bitblob;
 
 static import std.ascii;
-import std.algorithm;
+import std.algorithm.iteration : each, map;
 import std.range;
 import std.utf;
 
@@ -60,6 +60,9 @@ public struct BitBlob (size_t Bits)
     static assert (
         Bits % 8 == 0,
         "Argument to BitBlob must be a multiple of 8");
+
+    /// The width of this aggregate, in octets
+    public static immutable Width = Bits / 8;
 
     /// Convenience enum
     public enum StringBufferSize = (Width * 2 + 2);
@@ -131,7 +134,15 @@ public struct BitBlob (size_t Bits)
         assert(bin.length == Width);
         this.data[] = bin[];
         if (!isLE)
-            this.data[].reverse;
+        {
+            foreach (cnt; 0 .. Width / 2)
+            {
+                // Not sure the frontend is clever enough to avoid bounds checks
+                this.data[cnt] ^= this.data[$ - 1 - cnt];
+                this.data[$ - 1 - cnt] ^= this.data[cnt];
+                this.data[cnt] ^= this.data[$ - 1 - cnt];
+            }
+        }
     }
 
     /***************************************************************************
@@ -150,12 +161,17 @@ public struct BitBlob (size_t Bits)
 
     public this (scope const(char)[] hexstr)
     {
-        assert(hexstr.length == (Width * 2)
-               || hexstr.length == (Width * 2) + "0x".length);
+        enum ErrorMsg = "Wrong string size passed to ctor";
+        if (hexstr.length == (Width * 2) + "0x".length)
+        {
+            assert(hexstr[0] == '0', ErrorMsg);
+            assert(hexstr[1] == 'x' || hexstr[1] == 'X', ErrorMsg);
+            hexstr = hexstr[2 .. $];
+        }
+        else
+            assert(hexstr.length == (Width * 2), ErrorMsg);
 
         auto range = hexstr.byChar.map!(std.ascii.toLower!(char));
-        range.skipOver("0x".byChar);
-        // Each doesn't work
         foreach (size_t idx, chunk; range.map!(fromHex).chunks(2).retro.enumerate)
             this.data[idx] = cast(ubyte)((chunk[0] << 4) + chunk[1]);
     }
@@ -175,9 +191,6 @@ public struct BitBlob (size_t Bits)
     {
         return BitBlob!(Bits)(str);
     }
-
-    /// The width of this aggregate, in octets
-    public static immutable Width = Bits / 8;
 
     /// Store the internal data
     private ubyte[Width] data;
@@ -270,6 +283,16 @@ unittest
     auto statsAfter = GC.stats();
     assert(buffer == GenesisBlockHashStr);
     assert(statsBefore.usedSize == statsAfter.usedSize);
+}
+
+/// Test initialization from big endian
+@safe unittest
+{
+    import std.algorithm.mutation : reverse;
+    ubyte[32] genesis = GenesisBlockHash;
+    genesis[].reverse;
+    auto h = BitBlob!(256)(genesis, false);
+    assert(h.toString() == GenesisBlockHashStr);
 }
 
 version (unittest)
