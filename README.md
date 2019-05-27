@@ -1,4 +1,7 @@
-# bitblob
+# BitBlob
+
+[![Build Status](https://travis-ci.com/geod24/bitblob.svg?branch=v1.x.x)](https://travis-ci.com/geod24/bitblob)
+[![DUB Package](https://img.shields.io/dub/v/bitblob.svg)](https://code.dlang.org/packages/bitblob)
 
 A lightweight wrapper to represent hashes as value types.
 
