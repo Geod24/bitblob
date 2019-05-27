@@ -1,0 +1,17 @@
+language: d
+
+# Trusty is Travis' default but reached EOL 2019-04-30
+dist: xenial
+
+# Latest version of DMD/GDC/LDC
+matrix:
+  include:
+    - d: dmd
+    - d: ldc
+    - addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - gdc-9
+      env: DC=gdc-9
