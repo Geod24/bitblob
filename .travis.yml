@@ -3,12 +3,20 @@ language: d
 # Trusty is Travis' default but reached EOL 2019-04-30
 dist: xenial
 
-# Latest version of DMD/GDC/LDC
+os:
+  - linux
+  - osx
+
+d:
+  - dmd
+  - ldc
+  - dmd-2.085.1
+  - ldc-1.14.0
+
 matrix:
   include:
-    - d: dmd
-    - d: ldc
-    - addons:
+    - os: linux
+      addons:
         apt:
           sources:
             - ubuntu-toolchain-r-test
