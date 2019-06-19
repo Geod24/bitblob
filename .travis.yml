@@ -3,6 +3,11 @@ language: d
 # Trusty is Travis' default but reached EOL 2019-04-30
 dist: xenial
 
+# Poor man SemVer matching
+branches:
+  only:
+    - /^v\d+\.(x|[\d]+)\.(x|[\d]+)([-|\+](\S+))?$/
+
 os:
   - linux
   - osx
