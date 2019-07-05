@@ -131,7 +131,12 @@ public struct BitBlob (size_t Bits)
 
     public this (scope const ubyte[] bin, bool isLE = true)
     {
-        assert(bin.length == Width);
+        enum W = Width; // Make sure the value is shown, not the symbol
+        if (bin.length != Width)
+            assert(0, "ubyte[] argument to " ~ typeof(this).stringof
+                   ~ " constructor does not match the expected size of "
+                   ~ W.stringof);
+
         this.data[] = bin[];
         if (!isLE)
         {
@@ -161,7 +166,9 @@ public struct BitBlob (size_t Bits)
 
     public this (scope const(char)[] hexstr)
     {
-        enum ErrorMsg = "Wrong string size passed to ctor";
+        enum W = Width; // Make sure the value is shown, not the symbol
+        enum ErrorMsg = "Length of string passed to " ~ typeof(this).stringof
+            ~ " constructor does not match the expected size of " ~ W.stringof;
         if (hexstr.length == (Width * 2) + "0x".length)
         {
             assert(hexstr[0] == '0', ErrorMsg);
