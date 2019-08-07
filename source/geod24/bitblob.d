@@ -255,6 +255,8 @@ pure @safe nothrow @nogc unittest
     Hash gm1 = GMerkle_str;
     Hash gm2 = GMerkle_bin;
     assert(gm1.data == GMerkle_bin);
+    // Test opIndex
+    assert(gm1[] == GMerkle_bin);
     assert(gm1 == gm2);
 
     Hash empty;
@@ -264,6 +266,11 @@ pure @safe nothrow @nogc unittest
     // Test opCmp
     assert(empty < gen1);
     assert(gm1 > gen2);
+
+    assert(!(gm1 > gm1));
+    assert(!(gm1 < gm1));
+    assert(gm1 >= gm1);
+    assert(gm1 <= gm1);
 }
 
 /// Test toString
@@ -274,6 +281,8 @@ unittest
     Hash gen1 = GenesisBlockHashStr;
     assert(format("%s", gen1) == GenesisBlockHashStr);
     assert(gen1.toString() == GenesisBlockHashStr);
+    assert(Hash(gen1.toString()) == gen1);
+    assert(Hash.fromString(gen1.toString()) == gen1);
 }
 
 /// Make sure `toString` does not allocate even if it's not `@nogc`
@@ -300,6 +309,46 @@ unittest
     genesis[].reverse;
     auto h = BitBlob!(256)(genesis, false);
     assert(h.toString() == GenesisBlockHashStr);
+}
+
+// Test assertion failure to raise code coverage
+unittest
+{
+    import core.exception : AssertError;
+    import std.algorithm.mutation : reverse;
+    import std.exception;
+    alias Hash = BitBlob!(256);
+    ubyte[32] genesis = GenesisBlockHash;
+    genesis[].reverse;
+    Hash result;
+    assert(collectException!AssertError(Hash(genesis[0 .. $ - 1], false)) !is null);
+}
+
+// Ditto
+unittest
+{
+    import core.exception : AssertError;
+    import std.algorithm.mutation : reverse;
+    import std.exception;
+    alias Hash = BitBlob!(256);
+    ubyte[32] genesis = GenesisBlockHash;
+    genesis[].reverse;
+    Hash h = Hash(genesis, false);
+    Hash h1 = Hash(h.toString());
+    assert(h == h1);
+    assert(collectException!AssertError(Hash(h.toString()[0 .. $ - 1])) !is null);
+}
+
+// Ditto
+unittest
+{
+    alias Hash = BitBlob!(256);
+    import core.exception : AssertError;
+    import std.exception;
+    char[GenesisBlockHashStr.length] buff = GenesisBlockHashStr;
+    Hash h = Hash(buff);
+    buff[5] = '_'; // Invalid char
+    assert(collectException!AssertError(Hash(buff)) !is null);
 }
 
 version (unittest)
