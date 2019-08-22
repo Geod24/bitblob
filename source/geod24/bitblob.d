@@ -179,8 +179,9 @@ public struct BitBlob (size_t Bits)
             assert(hexstr.length == (Width * 2), ErrorMsg);
 
         auto range = hexstr.byChar.map!(std.ascii.toLower!(char));
-        foreach (size_t idx, chunk; range.map!(fromHex).chunks(2).retro.enumerate)
-            this.data[idx] = cast(ubyte)((chunk[0] << 4) + chunk[1]);
+        size_t idx;
+        foreach (chunk; range.map!(fromHex).chunks(2).retro)
+            this.data[idx++] = cast(ubyte)((chunk[0] << 4) + chunk[1]);
     }
 
     /***************************************************************************
@@ -349,6 +350,13 @@ unittest
     Hash h = Hash(buff);
     buff[5] = '_'; // Invalid char
     assert(collectException!AssertError(Hash(buff)) !is null);
+}
+
+// Make sure the string parsing works at CTFE
+unittest
+{
+    static immutable BitBlob!256 CTFEability = BitBlob!256(GenesisBlockHashStr);
+    static assert(CTFEability[] == GenesisBlockHash);
 }
 
 version (unittest)
