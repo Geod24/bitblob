@@ -234,6 +234,7 @@ public struct BitBlob (size_t Bits)
         assert(0, "Unexpected char in string passed to BitBlob");
     }
 
+    /// Support for comparison
     public int opCmp (ref const typeof(this) s) const
     {
         // Reverse because little endian
@@ -241,6 +242,12 @@ public struct BitBlob (size_t Bits)
             if (b != s.data[idx])
                 return b - s.data[idx];
         return 0;
+    }
+
+    /// Support for comparison (rvalue overload)
+    public int opCmp (const typeof(this) s) const
+    {
+        return this.opCmp(s);
     }
 }
 
@@ -357,6 +364,17 @@ unittest
 {
     static immutable BitBlob!256 CTFEability = BitBlob!256(GenesisBlockHashStr);
     static assert(CTFEability[] == GenesisBlockHash);
+}
+
+// Support for rvalue opCmp
+unittest
+{
+    alias Hash = BitBlob!(256);
+    import std.algorithm.sorting : sort;
+
+    static Hash getLValue(int) { return Hash.init; }
+    int[] array = [1, 2];
+    array.sort!((a, b) => getLValue(a) < getLValue(b));
 }
 
 version (unittest)
