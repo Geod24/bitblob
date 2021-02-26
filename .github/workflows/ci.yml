@@ -8,7 +8,7 @@ jobs:
     strategy:
       matrix:
         os: [ ubuntu-latest, macos-latest, windows-latest ]
-        dc: [ dmd-latest, ldc-latest, dmd-2.085.1, ldc-1.14.0 ]
+        dc: [ dmd-latest, ldc-latest, dmd-2.094.1, ldc-1.24.0 ]
 
     runs-on: ${{ matrix.os }}
 
