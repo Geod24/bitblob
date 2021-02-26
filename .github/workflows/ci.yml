@@ -18,10 +18,18 @@ jobs:
       with:
         compiler: ${{ matrix.dc }}
 
-    - name: 'Build & Test'
+    - name: 'Test'
       shell: bash
       run: |
+        dub build --compiler=$DC
         dub test --compiler=$DC -b unittest-cov
+
+    - name: 'Test with -preview=in'
+      shell: bash
+      run: |
+        # Can't use `dub` because of:
+        # https://github.com/dlang/dub/pull/2005#issuecomment-786531340
+        $DC -preview=in -unittest -main -run source/geod24/bitblob.d
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v1

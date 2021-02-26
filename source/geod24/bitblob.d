@@ -76,7 +76,7 @@ public struct BitBlob (size_t Bits)
 
     ***************************************************************************/
 
-    public void toString (scope void delegate(const(char)[]) @safe sink) const
+    public void toString (scope void delegate(in char[]) @safe sink) const
     {
         /// Used for formatting
         static immutable LHexDigits = `0123456789abcdef`;
@@ -105,7 +105,7 @@ public struct BitBlob (size_t Bits)
     {
         size_t idx;
         char[StringBufferSize] buffer = void;
-        scope sink = (const(char)[] v) {
+        scope sink = (in char[] v) {
                 buffer[idx .. idx + v.length] = v;
                 idx += v.length;
             };
@@ -129,7 +129,7 @@ public struct BitBlob (size_t Bits)
 
     ***************************************************************************/
 
-    public this (scope const ubyte[] bin, bool isLE = true)
+    public this (in ubyte[] bin, bool isLE = true)
     {
         enum W = Width; // Make sure the value is shown, not the symbol
         if (bin.length != Width)
@@ -195,7 +195,7 @@ public struct BitBlob (size_t Bits)
 
     ***************************************************************************/
 
-    static auto fromString (scope const(char)[] str)
+    static auto fromString (in char[] str)
     {
         return BitBlob!(Bits)(str);
     }
