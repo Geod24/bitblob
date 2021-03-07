@@ -24,7 +24,7 @@ import std.utf;
 @nogc @safe pure nothrow unittest
 {
     /// Alias for a 256 bits / 32 byte hash type
-    alias Hash = BitBlob!256;
+    alias Hash = BitBlob!32;
 
     import std.digest.sha;
     // Can be initialized from an `ubyte[32]`
@@ -46,26 +46,19 @@ import std.utf;
 
 /*******************************************************************************
 
-    A value type representing a hash
+    A value type representing a large binary value
 
     Params:
-      Bits = The size of the hash, in bits. Must be a multiple of 8.
+      Size = The size of the hash, in bytes
 
 *******************************************************************************/
 
-public struct BitBlob (size_t Bits)
+public struct BitBlob (size_t Size)
 {
     @safe:
 
-    static assert (
-        Bits % 8 == 0,
-        "Argument to BitBlob must be a multiple of 8");
-
-    /// The width of this aggregate, in octets
-    public static immutable Width = Bits / 8;
-
     /// Convenience enum
-    public enum StringBufferSize = (Width * 2 + 2);
+    public enum StringBufferSize = (Size * 2 + 2);
 
     /***************************************************************************
 
@@ -125,14 +118,14 @@ public struct BitBlob (size_t Bits)
                    Internally the data will be stored in little endian.
 
         Throws:
-            If `bin.length != typeof(this).Width`
+            If `bin.length != typeof(this).sizeof`
 
     ***************************************************************************/
 
     public this (scope const ubyte[] bin, bool isLE = true)
     {
-        enum W = Width; // Make sure the value is shown, not the symbol
-        if (bin.length != Width)
+        enum W = Size; // Make sure the value is shown, not the symbol
+        if (bin.length != Size)
             assert(0, "ubyte[] argument to " ~ typeof(this).stringof
                    ~ " constructor does not match the expected size of "
                    ~ W.stringof);
@@ -140,7 +133,7 @@ public struct BitBlob (size_t Bits)
         this.data[] = bin[];
         if (!isLE)
         {
-            foreach (cnt; 0 .. Width / 2)
+            foreach (cnt; 0 .. Size / 2)
             {
                 // Not sure the frontend is clever enough to avoid bounds checks
                 this.data[cnt] ^= this.data[$ - 1 - cnt];
@@ -160,23 +153,23 @@ public struct BitBlob (size_t Bits)
                      Can be upper or lower case.
 
         Throws:
-            If `hexstr_without_prefix.length != (typeof(this).Width * 2)`.
+            If `hexstr_without_prefix.length != (typeof(this).sizeof * 2)`.
 
     ***************************************************************************/
 
     public this (scope const(char)[] hexstr)
     {
-        enum W = Width; // Make sure the value is shown, not the symbol
+        enum W = Size; // Make sure the value is shown, not the symbol
         enum ErrorMsg = "Length of string passed to " ~ typeof(this).stringof
             ~ " constructor does not match the expected size of " ~ W.stringof;
-        if (hexstr.length == (Width * 2) + "0x".length)
+        if (hexstr.length == (Size * 2) + "0x".length)
         {
             assert(hexstr[0] == '0', ErrorMsg);
             assert(hexstr[1] == 'x' || hexstr[1] == 'X', ErrorMsg);
             hexstr = hexstr[2 .. $];
         }
         else
-            assert(hexstr.length == (Width * 2), ErrorMsg);
+            assert(hexstr.length == (Size * 2), ErrorMsg);
 
         auto range = hexstr.byChar.map!(std.ascii.toLower!(char));
         size_t idx;
@@ -197,11 +190,11 @@ public struct BitBlob (size_t Bits)
 
     static auto fromString (scope const(char)[] str)
     {
-        return BitBlob!(Bits)(str);
+        return BitBlob!(Size)(str);
     }
 
     /// Store the internal data
-    private ubyte[Width] data;
+    private ubyte[Size] data;
 
     /// Returns: If this BitBlob has any value
     public bool isNull () const
@@ -222,7 +215,7 @@ public struct BitBlob (size_t Bits)
     }
 
     /// Ditto
-    alias opDollar = Width;
+    alias opDollar = Size;
 
     /// Public because of a visibility bug
     public static ubyte fromHex (char c)
@@ -253,7 +246,7 @@ public struct BitBlob (size_t Bits)
 
 pure @safe nothrow @nogc unittest
 {
-    alias Hash = BitBlob!256;
+    alias Hash = BitBlob!32;
 
     Hash gen1 = GenesisBlockHashStr;
     Hash gen2 = GenesisBlockHash;
@@ -285,7 +278,7 @@ pure @safe nothrow @nogc unittest
 unittest
 {
     import std.format;
-    alias Hash = BitBlob!256;
+    alias Hash = BitBlob!32;
     Hash gen1 = GenesisBlockHashStr;
     assert(format("%s", gen1) == GenesisBlockHashStr);
     assert(gen1.toString() == GenesisBlockHashStr);
@@ -298,7 +291,7 @@ unittest
 {
     import core.memory;
     import std.format;
-    alias Hash = BitBlob!256;
+    alias Hash = BitBlob!32;
 
     Hash gen1 = GenesisBlockHashStr;
     char[Hash.StringBufferSize] buffer;
@@ -315,7 +308,7 @@ unittest
     import std.algorithm.mutation : reverse;
     ubyte[32] genesis = GenesisBlockHash;
     genesis[].reverse;
-    auto h = BitBlob!(256)(genesis, false);
+    auto h = BitBlob!(32)(genesis, false);
     assert(h.toString() == GenesisBlockHashStr);
 }
 
@@ -325,7 +318,7 @@ unittest
     import core.exception : AssertError;
     import std.algorithm.mutation : reverse;
     import std.exception;
-    alias Hash = BitBlob!(256);
+    alias Hash = BitBlob!(32);
     ubyte[32] genesis = GenesisBlockHash;
     genesis[].reverse;
     Hash result;
@@ -338,7 +331,7 @@ unittest
     import core.exception : AssertError;
     import std.algorithm.mutation : reverse;
     import std.exception;
-    alias Hash = BitBlob!(256);
+    alias Hash = BitBlob!(32);
     ubyte[32] genesis = GenesisBlockHash;
     genesis[].reverse;
     Hash h = Hash(genesis, false);
@@ -350,7 +343,7 @@ unittest
 // Ditto
 unittest
 {
-    alias Hash = BitBlob!(256);
+    alias Hash = BitBlob!(32);
     import core.exception : AssertError;
     import std.exception;
     char[GenesisBlockHashStr.length] buff = GenesisBlockHashStr;
@@ -362,14 +355,14 @@ unittest
 // Make sure the string parsing works at CTFE
 unittest
 {
-    static immutable BitBlob!256 CTFEability = BitBlob!256(GenesisBlockHashStr);
+    static immutable BitBlob!32 CTFEability = BitBlob!32(GenesisBlockHashStr);
     static assert(CTFEability[] == GenesisBlockHash);
 }
 
 // Support for rvalue opCmp
 unittest
 {
-    alias Hash = BitBlob!(256);
+    alias Hash = BitBlob!(32);
     import std.algorithm.sorting : sort;
 
     static Hash getLValue(int) { return Hash.init; }
