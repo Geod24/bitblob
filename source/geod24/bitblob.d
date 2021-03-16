@@ -73,7 +73,11 @@ public struct BitBlob (size_t Size)
 
         Params:
           sink = A delegate that can be called repeatedly to accumulate the data
-          fmt  = The format string used. Default to `%s`.
+          spec = The format spec to be used for the hex string representation.
+                 's' (which is default) - 0x prefix and lowercase hex
+                 'X' : uppercase hex
+                 'x' : lowercase hex
+
 
     ***************************************************************************/
 
