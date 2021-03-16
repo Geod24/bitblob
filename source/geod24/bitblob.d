@@ -17,6 +17,7 @@ module geod24.bitblob;
 
 static import std.ascii;
 import std.algorithm.iteration : each, map;
+import std.format;
 import std.range;
 import std.utf;
 
@@ -64,26 +65,58 @@ public struct BitBlob (size_t Size)
 
         Format the hash as a lowercase hex string
 
-        Used by `std.format`.
+        Used by `std.format` and other formatting primitives.
         Does not allocate/throw if the sink does not allocate/throw.
+
+        See_Also:
+          https://issues.dlang.org/show_bug.cgi?id=21722
+
+        Params:
+          sink = A delegate that can be called repeatedly to accumulate the data
+          fmt  = The format string used. Default to `%s`.
 
     ***************************************************************************/
 
     public void toString (scope void delegate(const(char)[]) @safe sink) const
     {
+        FormatSpec!char spec;
+        this.toString(sink, spec);
+    }
+
+    /// Ditto
+    public void toString (scope void delegate(const(char)[]) @safe sink,
+                          scope const ref FormatSpec!char spec) const
+    {
         /// Used for formatting
         static immutable LHexDigits = `0123456789abcdef`;
+        static immutable HHexDigits = `0123456789ABCDEF`;
 
-        sink("0x");
-        char[2] data;
-        // retro because the data is stored in little endian
-        this.data[].retro.each!(
-            (bin)
-            {
-                data[0] = LHexDigits[bin >> 4];
-                data[1] = LHexDigits[(bin & 0b0000_1111)];
-                sink(data);
-            });
+        void formatDigits (immutable string hex_digits)
+        {
+            char[2] data;
+            // retro because the data is stored in little endian
+            this.data[].retro.each!(
+                (bin)
+                {
+                    data[0] = hex_digits[bin >> 4];
+                    data[1] = hex_digits[(bin & 0b0000_1111)];
+                    sink(data);
+                });
+        }
+
+        switch (spec.spec)
+        {
+        case 'X':
+            formatDigits(HHexDigits);
+            break;
+        case 's':
+        default:
+            sink("0x");
+            goto case;
+        case 'x':
+            formatDigits(LHexDigits);
+            break;
+        }
     }
 
     /***************************************************************************
@@ -277,10 +310,14 @@ pure @safe nothrow @nogc unittest
 /// Test toString
 unittest
 {
-    import std.format;
+    import std.string : toUpper;
+
     alias Hash = BitBlob!32;
     Hash gen1 = GenesisBlockHashStr;
     assert(format("%s", gen1) == GenesisBlockHashStr);
+    assert(format("%x", gen1) == GenesisBlockHashStr[2 .. $]);
+    assert(format("%X", gen1) == GenesisBlockHashStr[2 .. $].toUpper());
+    assert(format("%w", gen1) == GenesisBlockHashStr);
     assert(gen1.toString() == GenesisBlockHashStr);
     assert(Hash(gen1.toString()) == gen1);
     assert(Hash.fromString(gen1.toString()) == gen1);
@@ -290,7 +327,6 @@ unittest
 unittest
 {
     import core.memory;
-    import std.format;
     alias Hash = BitBlob!32;
 
     Hash gen1 = GenesisBlockHashStr;
