@@ -196,17 +196,17 @@ public struct BitBlob (size_t Size)
 
     public this (scope const(char)[] hexstr)
     {
-        enum W = Size; // Make sure the value is shown, not the symbol
+        enum Expected = Size * 2; // Make sure the value is shown, not the symbol
         enum ErrorMsg = "Length of string passed to " ~ typeof(this).stringof
-            ~ " constructor does not match the expected size of " ~ W.stringof;
-        if (hexstr.length == (Size * 2) + "0x".length)
+            ~ " constructor does not match the expected size of " ~ Expected.stringof;
+        if (hexstr.length == (Expected + "0x".length))
         {
             assert(hexstr[0] == '0', ErrorMsg);
             assert(hexstr[1] == 'x' || hexstr[1] == 'X', ErrorMsg);
             hexstr = hexstr[2 .. $];
         }
         else
-            assert(hexstr.length == (Size * 2), ErrorMsg);
+            assert(hexstr.length == Expected, ErrorMsg);
 
         auto range = hexstr.byChar.map!(std.ascii.toLower!(char));
         size_t idx;
