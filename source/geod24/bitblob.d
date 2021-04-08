@@ -17,6 +17,7 @@ module geod24.bitblob;
 
 static import std.ascii;
 import std.algorithm.iteration : each, map;
+import std.algorithm.searching : countUntil, startsWith;
 import std.format;
 import std.range;
 import std.utf;
@@ -143,6 +144,41 @@ public struct BitBlob (size_t Size)
         return buffer.idup;
     }
 
+    /***************************************************************************
+
+        Support deserialization
+
+        Vibe.d expects the `toString`/`fromString` to be present for it to
+        correctly serialize and deserialize a type.
+        This allows to use this type as parameter in `vibe.web.rest` methods,
+        or use it with Vibe.d's serialization module.
+        This function does more extensive validation of the input than the
+        constructor and can be given user input.
+
+    ***************************************************************************/
+
+    static auto fromString (scope const(char)[] str)
+    {
+        // Ignore prefix
+        if (str.startsWith("0x") || str.startsWith("0X"))
+            str = str[2 .. $];
+
+        // Then check length
+        if (str.length != Size * 2)
+            throw new Exception(
+                format("Cannot parse string '%s' of length %s: Expected %s chars (%s with prefix)",
+                       str, str.length, Size * 2, Size * 2 + 2));
+
+        // Then content check
+        auto index = str.countUntil!(e => !std.ascii.isAlphaNum(e));
+        if (index != -1)
+            throw new Exception(
+                format("String '%s' has non alphanumeric character at index %s",
+                       str, index));
+
+        return BitBlob(str);
+    }
+
     pure nothrow @nogc:
 
     /***************************************************************************
@@ -212,22 +248,6 @@ public struct BitBlob (size_t Size)
         size_t idx;
         foreach (chunk; range.map!(fromHex).chunks(2).retro)
             this.data[idx++] = cast(ubyte)((chunk[0] << 4) + chunk[1]);
-    }
-
-    /***************************************************************************
-
-        Support deserialization
-
-        Vibe.d expects the `toString`/`fromString` to be present for it to
-        correctly serialize and deserialize a type.
-        This allows to use this type as parameter in `vibe.web.rest` methods,
-        or use it with Vibe.d's serialization module.
-
-    ***************************************************************************/
-
-    static auto fromString (scope const(char)[] str)
-    {
-        return BitBlob!(Size)(str);
     }
 
     /// Store the internal data
@@ -392,11 +412,28 @@ unittest
     assert(collectException!AssertError(Hash(buff)) !is null);
 }
 
+// Test that `fromString` throws Exceptions as and when expected
+unittest
+{
+    import std.exception;
+    alias Hash = BitBlob!(32);
+
+    // Error on the length
+    assert(collectException!Exception(Hash.fromString("Hello world")) !is null);
+
+    char[GenesisBlockHashStr.length] buff = GenesisBlockHashStr;
+    Hash h = Hash(buff);
+    buff[5] = '_';
+    // Error on the invalid char
+    assert(collectException!Exception(Hash.fromString(buff)) !is null);
+}
+
 // Make sure the string parsing works at CTFE
 unittest
 {
     static immutable BitBlob!32 CTFEability = BitBlob!32(GenesisBlockHashStr);
     static assert(CTFEability[] == GenesisBlockHash);
+    static assert(CTFEability == BitBlob!32.fromString(GenesisBlockHashStr));
 }
 
 // Support for rvalue opCmp
