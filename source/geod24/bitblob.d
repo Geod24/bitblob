@@ -380,7 +380,7 @@ unittest
     assert(collectException!AssertError(Hash(h.toString()[0 .. $ - 1])) !is null);
 }
 
-// Ditto
+// Ditto (Covers the assert(0) in `fromHex`)
 unittest
 {
     alias Hash = BitBlob!(32);
