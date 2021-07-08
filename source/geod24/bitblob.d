@@ -170,10 +170,10 @@ public struct BitBlob (size_t Size)
                        str, str.length, Size * 2, Size * 2 + 2));
 
         // Then content check
-        auto index = str.countUntil!(e => !std.ascii.isAlphaNum(e));
+        auto index = str.countUntil!(e => !std.ascii.isHexDigit(e));
         if (index != -1)
             throw new Exception(
-                format("String '%s' has non alphanumeric character at index %s",
+                format("String '%s' has non hex character at index %s",
                        str, index));
 
         return BitBlob(str);
