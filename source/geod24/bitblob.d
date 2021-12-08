@@ -82,14 +82,14 @@ public struct BitBlob (size_t Size)
 
     ***************************************************************************/
 
-    public void toString (scope void delegate(const(char)[]) @safe sink) const
+    public void toString (scope void delegate(in char[]) @safe sink) const
     {
         FormatSpec!char spec;
         this.toString(sink, spec);
     }
 
     /// Ditto
-    public void toString (scope void delegate(const(char)[]) @safe sink,
+    public void toString (scope void delegate(in char[]) @safe sink,
                           scope const ref FormatSpec!char spec) const
     {
         /// Used for formatting
@@ -136,7 +136,7 @@ public struct BitBlob (size_t Size)
     {
         size_t idx;
         char[StringBufferSize] buffer = void;
-        scope sink = (const(char)[] v) {
+        scope sink = (in char[] v) {
                 buffer[idx .. idx + v.length] = v;
                 idx += v.length;
             };
